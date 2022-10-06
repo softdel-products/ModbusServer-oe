@@ -7,7 +7,7 @@
 
 #ifndef DATA_LINK_LAYER_H_
 #define DATA_LINK_LAYER_H_
-#include "../src/ModbusExporttedAPI.h"
+#include "ModbusExporttedAPI.h"
 
 #ifdef MODBUS_STACK_TCPIP_ENABLED
 MODBUS_BEGIN_DECLS
@@ -23,10 +23,6 @@ MODBUS_STACK_EXPORT modbus_t* modbus_new_tcp(const char *ip_address, int port);
 MODBUS_STACK_EXPORT int modbus_tcp_listen(modbus_t *ctx, int nb_connection);
 MODBUS_STACK_EXPORT int modbus_tcp_accept(modbus_t *ctx, int *s);
 
-MODBUS_STACK_EXPORT modbus_t* modbus_new_tcp_pi(const char *node, const char *service);
-MODBUS_STACK_EXPORT int modbus_tcp_pi_listen(modbus_t *ctx, int nb_connection);
-MODBUS_STACK_EXPORT int modbus_tcp_pi_accept(modbus_t *ctx, int *s);
-
 MODBUS_END_DECLS
 #else
 MODBUS_BEGIN_DECLS
@@ -36,7 +32,7 @@ MODBUS_BEGIN_DECLS
  */
 #define MODBUS_RTU_MAX_ADU_LENGTH  256
 
-MODBUS_STACK_EXPORT modbus_t* modbus_new_rtu(const char *device, int baud, char parity,
+MODBUS_STACK_EXPORT modbus_t* initSerialPort(const char *device, int baud, char parity,
                                     int data_bit, int stop_bit);
 
 #define MODBUS_RTU_RS232 0

@@ -167,8 +167,8 @@ typedef enum
     MODBUS_ERROR_RECOVERY_PROTOCOL      = (1<<2)
 } modbus_error_recovery_mode;
 
-MODBUS_STACK_EXPORT void CallBackModbusRead(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, uint8_t *values);
-MODBUS_STACK_EXPORT void CallBackModbusWrite(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, uint8_t *values);
+MODBUS_STACK_EXPORT void CallBackFunctionForModbus(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values);
+//MODBUS_STACK_EXPORT void CallBackModbusWrite(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values);
 MODBUS_STACK_EXPORT int modbus_set_slave(modbus_t* ctx, int slave);
 MODBUS_STACK_EXPORT int modbus_get_slave(modbus_t* ctx);
 MODBUS_STACK_EXPORT int modbus_set_error_recovery(modbus_t *ctx, modbus_error_recovery_mode error_recovery);
@@ -282,7 +282,7 @@ MODBUS_STACK_EXPORT void modbus_set_float_dcba(float f, uint16_t *dest);
 MODBUS_STACK_EXPORT void modbus_set_float_badc(float f, uint16_t *dest);
 MODBUS_STACK_EXPORT void modbus_set_float_cdab(float f, uint16_t *dest);
 
-#include "../src/Data_Link_Layer.h"
+#include "Data_Link_Layer.h"
 
 MODBUS_END_DECLS
 

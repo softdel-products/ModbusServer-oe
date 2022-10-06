@@ -13,16 +13,16 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
-# include <sys/socket.h>
-# include <sys/ioctl.h>
-# include <netinet/in.h>
-# include <netinet/ip.h>
-# include <netinet/tcp.h>
-# include <arpa/inet.h>
-# include <netdb.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include "modbus-private.h"
 #include "Data_Link_Layer.h"
-#include "modbus-tcp-private.h"
+#include "modbus_def.h"
 
 #else
 #include <stdio.h>
@@ -38,7 +38,7 @@
 #include "modbus-private.h"
 
 #include "Data_Link_Layer.h"
-#include "modbus-rtu-private.h"
+#include "modbus_def.h"
 #endif
 
 #ifdef MODBUS_STACK_TCPIP_ENABLED
@@ -194,7 +194,6 @@ static int _modbus_tcp_set_ipv4_options(int s)
     }
 
 
-#ifndef OS_WIN32
     /**
      * Cygwin defines IPTOS_LOWDELAY but can't handle that flag so it's
      * necessary to workaround that problem.
@@ -206,7 +205,6 @@ static int _modbus_tcp_set_ipv4_options(int s)
     if (rc == -1) {
         return -1;
     }
-#endif
 
     return 0;
 }
@@ -285,78 +283,6 @@ static int _modbus_tcp_connect(modbus_t *ctx)
     if (rc == -1) {
         close(ctx->s);
         ctx->s = -1;
-        return -1;
-    }
-
-    return 0;
-}
-
-/* Establishes a modbus TCP PI connection with a Modbus server. */
-static int _modbus_tcp_pi_connect(modbus_t *ctx)
-{
-    int rc;
-    struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
-    struct addrinfo ai_hints;
-    modbus_tcp_pi_t *ctx_tcp_pi = ctx->backend_data;
-
-    memset(&ai_hints, 0, sizeof(ai_hints));
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family = AF_UNSPEC;
-    ai_hints.ai_socktype = SOCK_STREAM;
-    ai_hints.ai_addr = NULL;
-    ai_hints.ai_canonname = NULL;
-    ai_hints.ai_next = NULL;
-
-    ai_list = NULL;
-    rc = getaddrinfo(ctx_tcp_pi->node, ctx_tcp_pi->service,
-                     &ai_hints, &ai_list);
-    if (rc != 0) {
-        if (ctx->debug) {
-            fprintf(stderr, "Error returned by getaddrinfo: %s\n", gai_strerror(rc));
-        }
-        errno = ECONNREFUSED;
-        return -1;
-    }
-
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
-        int flags = ai_ptr->ai_socktype;
-        int s;
-
-#ifdef SOCK_CLOEXEC
-        flags |= SOCK_CLOEXEC;
-#endif
-
-#ifdef SOCK_NONBLOCK
-        flags |= SOCK_NONBLOCK;
-#endif
-
-        s = socket(ai_ptr->ai_family, flags, ai_ptr->ai_protocol);
-        if (s < 0)
-            continue;
-
-        if (ai_ptr->ai_family == AF_INET)
-            _modbus_tcp_set_ipv4_options(s);
-
-        if (ctx->debug) {
-            printf("Connecting to [%s]:%s\n", ctx_tcp_pi->node, ctx_tcp_pi->service);
-        }
-
-        rc = _connect(s, ai_ptr->ai_addr, ai_ptr->ai_addrlen, &ctx->response_timeout);
-        if (rc == -1) {
-            close(s);
-            continue;
-        }
-
-        ctx->s = s;
-        break;
-    }
-
-    freeaddrinfo(ai_list);
-
-    if (ctx->s < 0) {
         return -1;
     }
 
@@ -450,116 +376,6 @@ int modbus_tcp_listen(modbus_t *ctx, int nb_connection)
     return new_s;
 }
 
-int modbus_tcp_pi_listen(modbus_t *ctx, int nb_connection)
-{
-    int rc;
-    struct addrinfo *ai_list;
-    struct addrinfo *ai_ptr;
-    struct addrinfo ai_hints;
-    const char *node;
-    const char *service;
-    int new_s;
-    modbus_tcp_pi_t *ctx_tcp_pi;
-
-    if (ctx == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    ctx_tcp_pi = ctx->backend_data;
-
-    if (ctx_tcp_pi->node[0] == 0) {
-        node = NULL; /* == any */
-    } else {
-        node = ctx_tcp_pi->node;
-    }
-
-    if (ctx_tcp_pi->service[0] == 0) {
-        service = "502";
-    } else {
-        service = ctx_tcp_pi->service;
-    }
-
-    memset(&ai_hints, 0, sizeof (ai_hints));
-    /* If node is not NULL, than the AI_PASSIVE flag is ignored. */
-    ai_hints.ai_flags |= AI_PASSIVE;
-#ifdef AI_ADDRCONFIG
-    ai_hints.ai_flags |= AI_ADDRCONFIG;
-#endif
-    ai_hints.ai_family = AF_UNSPEC;
-    ai_hints.ai_socktype = SOCK_STREAM;
-    ai_hints.ai_addr = NULL;
-    ai_hints.ai_canonname = NULL;
-    ai_hints.ai_next = NULL;
-
-    ai_list = NULL;
-    rc = getaddrinfo(node, service, &ai_hints, &ai_list);
-    if (rc != 0) {
-        if (ctx->debug) {
-            fprintf(stderr, "Error returned by getaddrinfo: %s\n", gai_strerror(rc));
-        }
-        errno = ECONNREFUSED;
-        return -1;
-    }
-
-    new_s = -1;
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
-        int flags = ai_ptr->ai_socktype;
-        int s;
-
-#ifdef SOCK_CLOEXEC
-        flags |= SOCK_CLOEXEC;
-#endif
-
-        s = socket(ai_ptr->ai_family, flags, ai_ptr->ai_protocol);
-        if (s < 0) {
-            if (ctx->debug) {
-                perror("socket");
-            }
-            continue;
-        } else {
-            int enable = 1;
-            rc = setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
-                            (void *)&enable, sizeof (enable));
-            if (rc != 0) {
-                close(s);
-                if (ctx->debug) {
-                    perror("setsockopt");
-                }
-                continue;
-            }
-        }
-
-        rc = bind(s, ai_ptr->ai_addr, ai_ptr->ai_addrlen);
-        if (rc != 0) {
-            close(s);
-            if (ctx->debug) {
-                perror("bind");
-            }
-            continue;
-        }
-
-        rc = listen(s, nb_connection);
-        if (rc != 0) {
-            close(s);
-            if (ctx->debug) {
-                perror("listen");
-            }
-            continue;
-        }
-
-        new_s = s;
-        break;
-    }
-    freeaddrinfo(ai_list);
-
-    if (new_s < 0) {
-        return -1;
-    }
-
-    return new_s;
-}
-
 int modbus_tcp_accept(modbus_t *ctx, int *s)
 {
     struct sockaddr_in addr;
@@ -581,30 +397,6 @@ int modbus_tcp_accept(modbus_t *ctx, int *s)
     if (ctx->debug) {
         printf("The client connection from %s is accepted\n",
                inet_ntoa(addr.sin_addr));
-    }
-
-    return ctx->s;
-}
-
-int modbus_tcp_pi_accept(modbus_t *ctx, int *s)
-{
-    struct sockaddr_storage addr;
-    socklen_t addrlen;
-
-    if (ctx == NULL) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    addrlen = sizeof(addr);
-    ctx->s = accept(*s, (struct sockaddr *)&addr, &addrlen);
-
-    if (ctx->s < 0) {
-        return -1;
-    }
-
-    if (ctx->debug) {
-        printf("The client connection is accepted.\n");
     }
 
     return ctx->s;
@@ -641,17 +433,6 @@ static void _modbus_tcp_free(modbus_t *ctx) {
     free(ctx);
 }
 
-static void _modbus_tcp_pi_free(modbus_t *ctx) {
-    if (ctx->backend_data) {
-        modbus_tcp_pi_t *ctx_tcp_pi = ctx->backend_data;
-        free(ctx_tcp_pi->node);
-        free(ctx_tcp_pi->service);
-        free(ctx->backend_data);
-    }
-
-    free(ctx);
-}
-
 const modbus_backend_t _modbus_tcp_backend = {
     _MODBUS_BACKEND_TYPE_TCP,
     _MODBUS_TCP_HEADER_LENGTH,
@@ -674,28 +455,6 @@ const modbus_backend_t _modbus_tcp_backend = {
     _modbus_tcp_free
 };
 
-
-const modbus_backend_t _modbus_tcp_pi_backend = {
-    _MODBUS_BACKEND_TYPE_TCP,
-    _MODBUS_TCP_HEADER_LENGTH,
-    _MODBUS_TCP_CHECKSUM_LENGTH,
-    MODBUS_TCP_MAX_ADU_LENGTH,
-    _modbus_set_slave,
-    _modbus_tcp_build_request_basis,
-    _modbus_tcp_build_response_basis,
-    _modbus_tcp_prepare_response_tid,
-    _modbus_tcp_send_msg_pre,
-    _modbus_tcp_send,
-    _modbus_tcp_receive,
-    _modbus_tcp_recv,
-    _modbus_tcp_check_integrity,
-    _modbus_tcp_pre_check_confirmation,
-    _modbus_tcp_pi_connect,
-    _modbus_tcp_close,
-    _modbus_tcp_flush,
-    _modbus_tcp_select,
-    _modbus_tcp_pi_free
-};
 
 modbus_t* modbus_new_tcp(const char *ip, int port)
 {
@@ -748,63 +507,6 @@ modbus_t* modbus_new_tcp(const char *ip, int port)
     return ctx;
 }
 
-
-modbus_t* modbus_new_tcp_pi(const char *node, const char *service)
-{
-    modbus_t *ctx;
-    modbus_tcp_pi_t *ctx_tcp_pi;
-
-    ctx = (modbus_t *)malloc(sizeof(modbus_t));
-    if (ctx == NULL) {
-        return NULL;
-    }
-    _modbus_init_common(ctx);
-
-    /* Could be changed after to reach a remote serial Modbus device */
-    ctx->slave = MODBUS_TCP_SLAVE;
-
-    ctx->backend = &_modbus_tcp_pi_backend;
-
-    ctx->backend_data = (modbus_tcp_pi_t *)malloc(sizeof(modbus_tcp_pi_t));
-    if (ctx->backend_data == NULL) {
-        modbus_free(ctx);
-        errno = ENOMEM;
-        return NULL;
-    }
-    ctx_tcp_pi = (modbus_tcp_pi_t *)ctx->backend_data;
-    ctx_tcp_pi->node = NULL;
-    ctx_tcp_pi->service = NULL;
-
-    if (node != NULL) {
-        ctx_tcp_pi->node = strdup(node);
-    } else {
-        /* The node argument can be empty to indicate any hosts */
-        ctx_tcp_pi->node = strdup("");
-    }
-
-    if (ctx_tcp_pi->node == NULL) {
-        modbus_free(ctx);
-        errno = ENOMEM;
-        return NULL;
-    }
-
-    if (service != NULL && service[0] != '\0') {
-        ctx_tcp_pi->service = strdup(service);
-    } else {
-        /* Default Modbus port number */
-        ctx_tcp_pi->service = strdup("502");
-    }
-
-    if (ctx_tcp_pi->service == NULL) {
-        modbus_free(ctx);
-        errno = ENOMEM;
-        return NULL;
-    }
-
-    ctx_tcp_pi->t_id = 0;
-
-    return ctx;
-}
 #else
 /* Table of CRC values for high-order byte */
 static const uint8_t table_crc_hi[] = {
@@ -1582,7 +1284,7 @@ const modbus_backend_t _modbus_rtu_backend = {
     _modbus_rtu_free
 };
 
-modbus_t* modbus_new_rtu(const char *device,
+modbus_t* initSerialPort(const char *device,
                          int baud, char parity, int data_bit,
                          int stop_bit)
 {

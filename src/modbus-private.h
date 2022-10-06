@@ -14,8 +14,7 @@
 #include <sys/types.h>
 //#include <config.h>
 
-
-#include "../src/ModbusExporttedAPI.h"
+#include "ModbusExporttedAPI.h"
 
 MODBUS_BEGIN_DECLS
 

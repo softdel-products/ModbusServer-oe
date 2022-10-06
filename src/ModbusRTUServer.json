@@ -1,0 +1,9 @@
+{
+    "config": 
+    {
+    	"PortName":"/dev/apalis-uart2",
+    	"Baudrate":115200,
+    	"Parity":"O",  
+	"Slave_ID": 1   
+    }
+}

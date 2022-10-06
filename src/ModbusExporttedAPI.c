@@ -19,7 +19,8 @@
 #include <stdint.h>
 #include "ModbusExporttedAPI.h"
 #include "modbus-private.h"
-#include "../bin/safestringlib-master/include/safe_lib.h"
+#include <safe_lib.h>
+
 
 /* Internal use */
 #define MSG_LENGTH_UNDEFINED -1
@@ -91,11 +92,7 @@ void _error_print(modbus_t *ctx, const char *context)
 static void _sleep_response_timeout(modbus_t *ctx)
 {
     /* Response timeout is always positive */
-#ifdef _WIN32
-    /* usleep doesn't exist on Windows */
-    Sleep((ctx->response_timeout.tv_sec * 1000) +
-          (ctx->response_timeout.tv_usec / 1000));
-#else
+
     /* usleep source code */
     struct timespec request, remaining;
     request.tv_sec = ctx->response_timeout.tv_sec;
@@ -103,7 +100,6 @@ static void _sleep_response_timeout(modbus_t *ctx)
     while (nanosleep(&request, &remaining) == -1 && errno == EINTR) {
         request = remaining;
     }
-#endif
 }
 
 int modbus_flush(modbus_t *ctx)
@@ -164,11 +160,14 @@ static unsigned int compute_response_length_from_request(modbus_t *ctx, uint8_t 
 static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
 {
     int rc;
-    int i;
+//    int i;
 
     msg_length = ctx->backend->send_msg_pre(msg, msg_length);
 
     if (ctx->debug) {
+//    	 for (i = 0; i < msg_length; i++)
+//    	            printf("[%.2X]", msg[i]);
+//    	        printf("\n");
 //    	uint16_t Start_Addr =0, NumberDatapts=0,Force_Data;
 //    	uint8_t Byte_Cout=0;
 //    			bool forceCoil=0;
@@ -309,7 +308,7 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
 //    			}
 //        for (i = 0; i < msg_length; i++)
 //            printf("[%.2X]", msg[i]);
-        printf("\n");
+//        printf("\n");
     }
 
     /* In recovery mode, the write command will be issued until to be
@@ -319,19 +318,7 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
         if (rc == -1) {
             _error_print(ctx, NULL);
             if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_LINK) {
-#ifdef _WIN32
-                const int wsa_err = WSAGetLastError();
-                if (wsa_err == WSAENETRESET || wsa_err == WSAENOTCONN || wsa_err == WSAENOTSOCK ||
-                    wsa_err == WSAESHUTDOWN || wsa_err == WSAEHOSTUNREACH || wsa_err == WSAECONNABORTED ||
-                    wsa_err == WSAECONNRESET || wsa_err == WSAETIMEDOUT) {
-                    modbus_close(ctx);
-                    _sleep_response_timeout(ctx);
-                    modbus_connect(ctx);
-                } else {
-                    _sleep_response_timeout(ctx);
-                    modbus_flush(ctx);
-                }
-#else
+
                 int saved_errno = errno;
 
                 if ((errno == EBADF || errno == ECONNRESET || errno == EPIPE)) {
@@ -343,7 +330,6 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
                     modbus_flush(ctx);
                 }
                 errno = saved_errno;
-#endif
             }
         }
     } while ((ctx->error_recovery & MODBUS_ERROR_RECOVERY_LINK) &&
@@ -497,7 +483,8 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     int msg_length = 0;
     _step_t step;
     uint8_t u8data[250]={0};
-    if (ctx->debug) {
+
+      if (ctx->debug) {
 //        if (msg_type == MSG_INDICATION) {
 //            printf("Waiting for an indication...\n");
 //        } else {
@@ -588,7 +575,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
 //            for (i=0; i < rc; i++)
 //                printf("<%.2X>", msg[msg_length + i]);
 //        }
-
+//        printf("\n");
         /* Sums bytes received */
         msg_length += rc;
         /* Computes remaining bytes */
@@ -633,121 +620,121 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
            expiration of response timeout (for CONFIRMATION only) */
     }
 
-    if (ctx->debug)
-    {
-		uint16_t Start_Addr =0, NumberDatapts=0,Force_Data;
-		bool forceCoil=0;
-
-
-		if(msg[0]==ctx->slave)
-		{
-			if(msg[1]==MODBUS_FC_WRITE_SINGLE_COIL || msg[1]==MODBUS_FC_WRITE_SINGLE_REGISTER)
-			{
-				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-				forceCoil =msg[4]<<8 | msg[5];
-				memset(u8data,0x00,sizeof(u8data));
-//				memcpy_s((void*)(req + req_length),(rsize_t) (raw_req_length - 2),(void*)(raw_req + 2),(rsize_t) (raw_req_length - 2));
-				memcpy(u8data,&forceCoil,sizeof(forceCoil));
-				CallBackModbusWrite(msg[1], Start_Addr,1, &u8data);
+//    if (ctx->debug)
+//    {
+//		uint16_t Start_Addr =0, NumberDatapts=0,Force_Data;
+//		bool forceCoil=0;
+//
+//
+//		if(msg[0]==ctx->slave)
+//		{
+//			if(msg[1]==MODBUS_FC_WRITE_SINGLE_COIL || msg[1]==MODBUS_FC_WRITE_SINGLE_REGISTER)
+//			{
+//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
+//				forceCoil =msg[4]<<8 | msg[5];
+////				memset(u8data,0x00,sizeof(u8data));
+////				memcpy_s((void*)(req + req_length),(rsize_t) (raw_req_length - 2),(void*)(raw_req + 2),(rsize_t) (raw_req_length - 2));
+////				memcpy(u8data,&forceCoil,sizeof(forceCoil));
+//				CallBackModbusWrite(msg[1], Start_Addr,1, &forceCoil);
 //				printf("\n Write Single Coils Addr =%d :Value =%d",Start_Addr,forceCoil);
-			}
-
-			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
-			{
-				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-				memset(u8data,0x00,sizeof(u8data));
-				memcpy(u8data,&forceCoil,sizeof(forceCoil));
-				CallBackModbusWrite(msg[1], Start_Addr,1, &u8data);
+//			}
+//
+//			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
+//			{
+//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
+//				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
+//				memset(u8data,0x00,sizeof(u8data));
+//				memcpy(u8data,&forceCoil,sizeof(forceCoil));
+//				CallBackModbusWrite(msg[1], Start_Addr,1, &u8data);
 //				printf("\n Write Multiple Holding Regsister =%d: Value =%d",Start_Addr,forceCoil);
-			}
-
-			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
-			{
-				uint16_t  tempcount=0;
-				uint16_t i=0, j =0, k=0;
-				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-				tempcount =msg[6];
-
-
-				if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS)
-				{
-					printf("\n Write Multiple Coils Addr =%d Number of Coils =%d",Start_Addr,NumberDatapts);
-					memset(u8data,0x00,sizeof(u8data));
-					memcpy(u8data,&msg[7],tempcount);
-					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
-				}else
-				{
-					printf("\n Write Multiple Coils Holding Addr =%d: Number of Register =%d",Start_Addr,NumberDatapts);
-					memset(u8data,0x00,sizeof(u8data));
-					memcpy(u8data,&msg[7],tempcount);
-					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
-				}
-
-				for (i=0; i < tempcount; i++)
-				{
-					if(msg[1]==15)
-					{
-						for(j=0;j<8;j++)
-						{
-							printf("\n%d :<%d>",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-							k++;
-						}
-					}else
-					{
-						printf("\n%d :<%d>",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-						i++;
-						k++;
-					}
-				}
-			}
-
-			switch (msg[1])
-				 {
-				    case MODBUS_FC_WRITE_SINGLE_COIL:
-				    	 printf("\n Write Single Coils Addr =%d :Value =%d",Start_Addr,forceCoil);
-
-
-				    	break;
-
-				    case MODBUS_FC_WRITE_SINGLE_REGISTER:
-						 printf("\n Write Single Coils Holding Regsister =%d: Value =%d",Start_Addr,forceCoil);
-
-
-						break;
-
-				    	if(msg[1]==15 || msg[1]==16)
-				    				{
-				    					uint16_t  tempcount=0;
-				    					uint16_t i=0, j =0, k=0;
-				    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-				    					NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-				    					tempcount =msg[6];
-				    					printf("\nByte Count =%d",tempcount);
-				    					for (i=0; i < tempcount; i++)
-				    					{
-				    						if(msg[1]==15)
-				    						{
-				    							for(j=0;j<8;j++)
-				    							{
-				    								printf("\n Address= %d :Value= %d",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-				    								k++;
-				    							}
-				    						}else
-				    						{
-				    							printf("\n Address= %d :Value= %d",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-				    							i++;
-				    							k++;
-				    						}
-				    					}
-				    				}
-				    break;
-
-
-				 }
-		}
-    }
+//			}
+//
+//			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
+//			{
+//				uint16_t  tempcount=0;
+//				uint16_t i=0, j =0, k=0;
+//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
+//				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
+//				tempcount =msg[6];
+//
+//
+//				if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS)
+//				{
+//					printf("\n Write Multiple Coils Addr =%d Number of Coils =%d",Start_Addr,NumberDatapts);
+//					memset(u8data,0x00,sizeof(u8data));
+//					memcpy(u8data,&msg[7],tempcount);
+//					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
+//				}else
+//				{
+//					printf("\n Write Multiple Coils Holding Addr =%d: Number of Register =%d",Start_Addr,NumberDatapts);
+//					memset(u8data,0x00,sizeof(u8data));
+//					memcpy(u8data,&msg[7],tempcount);
+//					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
+//				}
+//
+//				for (i=0; i < tempcount; i++)
+//				{
+//					if(msg[1]==15)
+//					{
+//						for(j=0;j<8;j++)
+//						{
+//							printf("\n%d :<%d>",(Start_Addr+k),(msg[7+i] >>j & 0x01));
+//							k++;
+//						}
+//					}else
+//					{
+//						printf("\n%d :<%d>",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
+//						i++;
+//						k++;
+//					}
+//				}
+//			}
+//
+//			switch (msg[1])
+//				 {
+//				    case MODBUS_FC_WRITE_SINGLE_COIL:
+//				    	 printf("\n Write Single Coils Addr =%d :Value =%d",Start_Addr,forceCoil);
+//
+//
+//				    	break;
+//
+//				    case MODBUS_FC_WRITE_SINGLE_REGISTER:
+//						 printf("\n Write Single Coils Holding Regsister =%d: Value =%d",Start_Addr,forceCoil);
+//
+//
+//						break;
+//
+//				    	if(msg[1]==15 || msg[1]==16)
+//				    				{
+//				    					uint16_t  tempcount=0;
+//				    					uint16_t i=0, j =0, k=0;
+//				    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
+//				    					NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
+//				    					tempcount =msg[6];
+//				    					printf("\nByte Count =%d",tempcount);
+//				    					for (i=0; i < tempcount; i++)
+//				    					{
+//				    						if(msg[1]==15)
+//				    						{
+//				    							for(j=0;j<8;j++)
+//				    							{
+//				    								printf("\n Address= %d :Value= %d",(Start_Addr+k),(msg[7+i] >>j & 0x01));
+//				    								k++;
+//				    							}
+//				    						}else
+//				    						{
+//				    							printf("\n Address= %d :Value= %d",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
+//				    							i++;
+//				    							k++;
+//				    						}
+//				    					}
+//				    				}
+//				    break;
+//
+//
+//				 }
+//		}
+//    }
 
     return ctx->backend->check_integrity(ctx, msg, msg_length);
 }
@@ -777,7 +764,7 @@ int modbus_receive_confirmation(modbus_t *ctx, uint8_t *rsp)
         errno = EINVAL;
         return -1;
     }
-
+    printf("\n Here 0");
     return _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
 }
 
@@ -988,16 +975,16 @@ static int response_exception(modbus_t *ctx, sft_t *sft,
 
     return rsp_length;
 }
-void CallBackModbusRead(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, uint8_t *values)
+void CallBackFunctionForModbus(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values)
 {
 	/**Callback Function for Application*/
 
 }
 
-void CallBackModbusWrite(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, uint8_t *values)
-{
-	/**Callback Function for Application*/
-}
+//void CallBackModbusWrite(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values)
+//{
+//	/**Callback Function for Application*/
+//}
 /* Send a response to the received request.
    Analyses the request and constructs a response.
 
@@ -1012,11 +999,11 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
     int function;
     uint16_t address;
     uint8_t rsp[MAX_MESSAGE_LENGTH];
-    uint8_t ReadData[MAX_MESSAGE_LENGTH];
+//    uint8_t ReadData[MAX_MESSAGE_LENGTH];
     int rsp_length = 0;
     sft_t sft;
-    uint16_t i=0, j =0, k=0;
-    uint8_t Byte_Cout=0;
+//    uint16_t i=0, j =0, k=0;
+//    uint8_t Byte_Cout=0;
     uint16_t Start_Addr=0;
     uint16_t NoCount=0;
 
@@ -1064,13 +1051,13 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
                 mapping_address < 0 ? address : address + nb, name);
         } else {
 
-        	CallBackModbusRead(function, Start_Addr, NoCount, ReadData);
+        	CallBackFunctionForModbus(function, Start_Addr, NoCount, tab_bits);
 
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             rsp[rsp_length++] = (nb / 8) + ((nb % 8) ? 1 : 0);
             rsp_length = response_io_status(tab_bits, mapping_address, nb,
                                             rsp, rsp_length);
-			Byte_Cout =rsp[2];
+//			Byte_Cout =NoCount;//rsp[2];
         }
     }
     	break;
@@ -1101,21 +1088,25 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
                 mapping_address < 0 ? address : address + nb, name);
         } else {
             int i;
-            CallBackModbusRead(function, Start_Addr, NoCount, ReadData);
+
+            CallBackFunctionForModbus(function, Start_Addr, NoCount, tab_registers);
+
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             rsp[rsp_length++] = nb << 1;
             for (i = mapping_address; i < mapping_address + nb; i++) {
+
+
                 rsp[rsp_length++] = tab_registers[i] >> 8;
                 rsp[rsp_length++] = tab_registers[i] & 0xFF;
 
-                Byte_Cout =rsp[2];
+//                Byte_Cout =NoCount*2;//rsp[2];
             }
         }
     }
         break;
     case MODBUS_FC_WRITE_SINGLE_COIL: {
         int mapping_address = address - mb_mapping->start_bits;
-
+        uint8_t *tab_bits = mb_mapping->tab_bits;
         if (mapping_address < 0 || mapping_address >= mb_mapping->nb_bits) {
             rsp_length = response_exception(
                 ctx, &sft, MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS, rsp, FALSE,
@@ -1126,10 +1117,13 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
 
             if (data == 0xFF00 || data == 0x0) {
                 mb_mapping->tab_bits[mapping_address] = data ? ON : OFF;
-//                memcpy(rsp, req, req_length);
+//               memcpy(rsp, req, req_length);
                 memcpy_s((void*)rsp,(rsize_t) sizeof(rsp),(void*)req,(rsize_t) req_length);
                 rsp_length = req_length;
+                CallBackFunctionForModbus(function, mapping_address, 0, tab_bits);
             } else {
+
+
                 rsp_length = response_exception(
                     ctx, &sft,
                     MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE, rsp, FALSE,
@@ -1142,7 +1136,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
         break;
     case MODBUS_FC_WRITE_SINGLE_REGISTER: {
         int mapping_address = address - mb_mapping->start_registers;
-
+        uint16_t *tab_registers = mb_mapping->tab_registers;
         if (mapping_address < 0 || mapping_address >= mb_mapping->nb_registers) {
             rsp_length = response_exception(
                 ctx, &sft,
@@ -1155,6 +1149,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
             mb_mapping->tab_registers[mapping_address] = data;
             memcpy(rsp, req, req_length);
             rsp_length = req_length;
+            CallBackFunctionForModbus(function, mapping_address, 0, tab_registers);
         }
     }
         break;
@@ -1162,6 +1157,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
         int nb = (req[offset + 3] << 8) + req[offset + 4];
         int nb_bits = req[offset + 5];
         int mapping_address = address - mb_mapping->start_bits;
+        uint8_t *tab_bits = mb_mapping->tab_bits;
 
         if (nb < 1 || MODBUS_MAX_WRITE_BITS < nb || nb_bits * 8 < nb) {
             /* May be the indication has been truncated on reading because of
@@ -1179,10 +1175,11 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
                 "Illegal data address 0x%0X in write_bits\n",
                 mapping_address < 0 ? address : address + nb);
         } else {
+
             /* 6 = byte count */
             modbus_set_bits_from_bytes(mb_mapping->tab_bits, mapping_address, nb,
                                        &req[offset + 6]);
-
+            CallBackFunctionForModbus(function, mapping_address, nb, tab_bits);
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             /* 4 to copy the bit address (2) and the quantity of bits */
             memcpy(rsp + rsp_length, req + rsp_length, 4);
@@ -1194,6 +1191,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
         int nb = (req[offset + 3] << 8) + req[offset + 4];
         int nb_bytes = req[offset + 5];
         int mapping_address = address - mb_mapping->start_registers;
+        uint16_t *tab_registers = mb_mapping->tab_registers;
 
         if (nb < 1 || MODBUS_MAX_WRITE_REGISTERS < nb || nb_bytes != nb * 2) {
             rsp_length = response_exception(
@@ -1213,7 +1211,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
                 mb_mapping->tab_registers[i] =
                     (req[offset + j] << 8) + req[offset + j + 1];
             }
-
+            CallBackFunctionForModbus(function, mapping_address, nb, tab_registers);
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             /* 4 to copy the address (2) and the no. of registers */
             memcpy(rsp + rsp_length, req + rsp_length, 4);
@@ -1323,73 +1321,74 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
 	int ret =(ctx->backend->backend_type == _MODBUS_BACKEND_TYPE_RTU &&
 	slave == MODBUS_BROADCAST_ADDRESS) ? 0 : send_msg(ctx, rsp, rsp_length);
 
-	 switch (function)
-	 {
-	    case MODBUS_FC_READ_COILS:
-	    case MODBUS_FC_READ_DISCRETE_INPUTS:
-	    {
-	    	if(rsp[1]==1)
-				printf("\n Read Coils Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
-			else
-				printf("\n Read Input Status Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
-			for (i=0; i < Byte_Cout; i++)
-			{
-				if(rsp[1]==1)
-				{
-					for(j=0;j<8;j++)
-					{
-						printf("\n%d :<%d>",(Start_Addr+k),(rsp[3+i] >>j & 0x01));
-						k++;
-						if(k > NoCount)
-						{
-							break;
-						}
-					}
-				}if(rsp[1]==2)
-				{
-					for(j=0;j<8;j++)
-					{
-						printf("\n %d :<%d>",(Start_Addr+k),(rsp[3+i] >>j & 0x01));
-						k++;
-						if(k > NoCount)
-						{
-							break;
-						}
-					}
-				}
-			}
-	    }
-	    break;
-
-	    case MODBUS_FC_READ_HOLDING_REGISTERS:
-	    case MODBUS_FC_READ_INPUT_REGISTERS:
-	    {
-	    	uint8_t l=0;
-	    	if(rsp[1]==3)
-				printf("\n Read Holding Register Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
-			else
-				printf("\n Read Input Holding Register Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
-
-	    	printf("\n");
-			for (i=0; i < Byte_Cout; i++)
-			{
-
-				if(rsp[1]==3)
-				{
-					printf("\n%d : <%d>",(Start_Addr+k),((rsp[3+i]<<8) & 0xFF00) | (rsp[4+i] &0x00FF));
-					i++;
-					k++;
-
-				}if(rsp[1]==4)
-				{
-					printf("\n%d : <%d>",(Start_Addr+k),((rsp[3+i]<<8) & 0xFF00) | (rsp[4+i] &0x00FF));
-					i++;
-					k++;
-				}
-			}
-	    }
-	    break;
-	 }
+//	 switch (function)
+//	 {
+//	    case MODBUS_FC_READ_COILS:
+//	    case MODBUS_FC_READ_DISCRETE_INPUTS:
+//	    {
+//	    	if(rsp[1]==0)
+//				printf("\n Read Coils Start Addr =%d No. of Regs =%d Byte_Cout=%d",Start_Addr,NoCount,Byte_Cout);
+//			else
+//				printf("\n Read Input Status Start Addr =%d No. of Regs =%d Byte_Cout=%d",Start_Addr,NoCount,Byte_Cout);
+//
+//			for (i=0; i < Byte_Cout; i++)
+//			{
+//				if(rsp[1]==1)
+//				{
+//					for(j=0;j<8;j++)
+//					{
+//						printf("\n%d :<%d>",(Start_Addr+k),(rsp[3+i] >>j & 0x01));
+//						k++;
+//						if(k > NoCount)
+//						{
+//							break;
+//						}
+//					}
+//				}if(rsp[1]==2)
+//				{
+//					for(j=0;j<8;j++)
+//					{
+//						printf("\n %d :<%d>",(Start_Addr+k),(rsp[3+i] >>j & 0x01));
+//						k++;
+//						if(k > NoCount)
+//						{
+//							break;
+//						}
+//					}
+//				}
+//			}
+//	    }
+//	    break;
+//
+//	    case MODBUS_FC_READ_HOLDING_REGISTERS:
+//	    case MODBUS_FC_READ_INPUT_REGISTERS:
+//	    {
+//	    	uint8_t l=0;
+//	    	if(rsp[1]==3)
+//				printf("\n Read Holding Register Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
+//			else
+//				printf("\n Read Input Holding Register Start Addr =%d No. of Regs =%d",Start_Addr,NoCount);
+//
+//	    	printf("\n");
+//			for (i=0; i < Byte_Cout; i++)
+//			{
+//
+//				if(rsp[1]==3)
+//				{
+//					printf("\n%d : <%d>",(Start_Addr+k),((rsp[3+i]<<8) & 0xFF00) | (rsp[4+i] &0x00FF));
+//					i++;
+//					k++;
+//
+//				}if(rsp[1]==4)
+//				{
+//					printf("\n%d : <%d>",(Start_Addr+k),((rsp[3+i]<<8) & 0xFF00) | (rsp[4+i] &0x00FF));
+//					i++;
+//					k++;
+//				}
+//			}
+//	    }
+//	    break;
+//	 }
 
 	return ret;
 }
@@ -1449,6 +1448,7 @@ static int read_io_status(modbus_t *ctx, int function,
         int offset_end;
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 1");
         if (rc == -1)
             return -1;
 
@@ -1558,6 +1558,7 @@ static int read_registers(modbus_t *ctx, int function, int addr, int nb,
         int i;
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 2");
         if (rc == -1)
             return -1;
 
@@ -1649,6 +1650,7 @@ static int write_single(modbus_t *ctx, int function, int addr, const uint16_t va
         uint8_t rsp[MAX_MESSAGE_LENGTH];
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 3");
         if (rc == -1)
             return -1;
 
@@ -1734,6 +1736,7 @@ int modbus_write_bits(modbus_t *ctx, int addr, int nb, const uint8_t *src)
         uint8_t rsp[MAX_MESSAGE_LENGTH];
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 4");
         if (rc == -1)
             return -1;
 
@@ -1784,6 +1787,7 @@ int modbus_write_registers(modbus_t *ctx, int addr, int nb, const uint16_t *src)
         uint8_t rsp[MAX_MESSAGE_LENGTH];
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 5");
         if (rc == -1)
             return -1;
 
@@ -1820,6 +1824,7 @@ int modbus_mask_write_register(modbus_t *ctx, int addr, uint16_t and_mask, uint1
         uint8_t rsp[MAX_MESSAGE_LENGTH];
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 6");
         if (rc == -1)
             return -1;
 
@@ -1890,6 +1895,7 @@ int modbus_write_and_read_registers(modbus_t *ctx,
         int offset;
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 7");
         if (rc == -1)
             return -1;
 
@@ -1934,6 +1940,7 @@ int modbus_report_slave_id(modbus_t *ctx, int max_dest, uint8_t *dest)
         uint8_t rsp[MAX_MESSAGE_LENGTH];
 
         rc = _modbus_receive_msg(ctx, rsp, MSG_CONFIRMATION);
+        printf("\n Here 8");
         if (rc == -1)
             return -1;
 
