@@ -1,8 +1,0 @@
-{
-    "config": 
-    {
-    	"IP_Address":"172.16.2.209",
-    	"PortNumber":1502,
-	"Slave_ID": 1       
-    }
-}

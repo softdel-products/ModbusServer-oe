@@ -47,11 +47,13 @@ static int _modbus_set_slave(modbus_t *ctx, int slave)
     /* Broadcast address is 0 (MODBUS_BROADCAST_ADDRESS) */
     if (slave >= 0 && slave <= 247) {
         ctx->slave = slave;
-    } else if (slave == MODBUS_TCP_SLAVE) {
-        /* The special value MODBUS_TCP_SLAVE (0xFF) can be used in TCP mode to
-         * restore the default value. */
-        ctx->slave = slave;
-    } else {
+//    } else
+//    	if (slave == MODBUS_TCP_SLAVE) {
+//        /* The special value MODBUS_TCP_SLAVE (0xFF) can be used in TCP mode to
+//         * restore the default value. */
+//        ctx->slave = slave;
+    } else
+    {
         errno = EINVAL;
         return -1;
     }
@@ -150,6 +152,18 @@ static ssize_t _modbus_tcp_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length) {
 
 static int _modbus_tcp_check_integrity(modbus_t *ctx, uint8_t *msg, const int msg_length)
 {
+	int slave = msg[6];
+
+		    /* Filter on the Modbus unit identifier (slave) in RTU mode to avoid useless
+		     * CRC computing. */
+		if (slave != ctx->slave && slave != MODBUS_BROADCAST_ADDRESS) {
+			if (ctx->debug) {
+				printf("Request for slave %d ignored (not matching with Device ID %d)\n", slave, ctx->slave);
+			}
+			/* Following call to check_confirmation handles this error */
+			return 0;
+		}
+
     return msg_length;
 }
 
@@ -470,7 +484,7 @@ modbus_t* modbus_new_tcp(const char *ip, int port)
     _modbus_init_common(ctx);
 
     /* Could be changed after to reach a remote serial Modbus device */
-    ctx->slave = MODBUS_TCP_SLAVE;
+//    ctx->slave = MODBUS_TCP_SLAVE;
 
     ctx->backend = &_modbus_tcp_backend;
 
@@ -712,7 +726,7 @@ static int _modbus_rtu_check_integrity(modbus_t *ctx, uint8_t *msg,
      * CRC computing. */
     if (slave != ctx->slave && slave != MODBUS_BROADCAST_ADDRESS) {
         if (ctx->debug) {
-            printf("Request for slave %d ignored (not %d)\n", slave, ctx->slave);
+            printf("Request for slave %d ignored (not matching with Device ID %d)\n", slave, ctx->slave);
         }
         /* Following call to check_confirmation handles this error */
         return 0;
