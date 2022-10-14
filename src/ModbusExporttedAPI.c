@@ -583,6 +583,15 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     int length_to_read;
     int msg_length = 0;
     _step_t step;
+//    uint8_t u8data[250]={0};
+
+      if (ctx->debug) {
+//        if (msg_type == MSG_INDICATION) {
+//            printf("Waiting for an indication...\n");
+//        } else {
+//            printf("Waiting for a confirmation...\n");
+//        }
+    }
 
     if (ctx->s < 0) {
         if (ctx->debug) {

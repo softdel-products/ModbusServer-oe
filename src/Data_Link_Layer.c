@@ -995,63 +995,9 @@ static int _modbus_rtu_connect(modbus_t *ctx)
         tios.c_cflag |= PARODD;
     }
 
-    /* Read the man page of termios if you need more information. */
-
-    /* This field isn't used on POSIX systems
-       tios.c_line = 0;
-    */
-
-    /* C_LFLAG      Line options
-
-       ISIG Enable SIGINTR, SIGSUSP, SIGDSUSP, and SIGQUIT signals
-       ICANON       Enable canonical input (else raw)
-       XCASE        Map uppercase \lowercase (obsolete)
-       ECHO Enable echoing of input characters
-       ECHOE        Echo erase character as BS-SP-BS
-       ECHOK        Echo NL after kill character
-       ECHONL       Echo NL
-       NOFLSH       Disable flushing of input buffers after
-       interrupt or quit characters
-       IEXTEN       Enable extended functions
-       ECHOCTL      Echo control characters as ^char and delete as ~?
-       ECHOPRT      Echo erased character as character erased
-       ECHOKE       BS-SP-BS entire line on line kill
-       FLUSHO       Output being flushed
-       PENDIN       Retype pending input at next read or input char
-       TOSTOP       Send SIGTTOU for background output
-
-       Canonical input is line-oriented. Input characters are put
-       into a buffer which can be edited interactively by the user
-       until a CR (carriage return) or LF (line feed) character is
-       received.
-
-       Raw input is unprocessed. Input characters are passed
-       through exactly as they are received, when they are
-       received. Generally you'll deselect the ICANON, ECHO,
-       ECHOE, and ISIG options when using raw input
-    */
-
     /* Raw input */
     tios.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
-    /* C_IFLAG      Input options
-
-       Constant     Description
-       INPCK        Enable parity check
-       IGNPAR       Ignore parity errors
-       PARMRK       Mark parity errors
-       ISTRIP       Strip parity bits
-       IXON Enable software flow control (outgoing)
-       IXOFF        Enable software flow control (incoming)
-       IXANY        Allow any character to start flow again
-       IGNBRK       Ignore break condition
-       BRKINT       Send a SIGINT when a break condition is detected
-       INLCR        Map NL to CR
-       IGNCR        Ignore CR
-       ICRNL        Map CR to NL
-       IUCLC        Map uppercase to lowercase
-       IMAXBEL      Echo BEL on input line too long
-    */
     if (ctx_rtu->parity == 'N') {
         /* None */
         tios.c_iflag &= ~INPCK;
@@ -1387,7 +1333,13 @@ modbus_t* initSerialPort(const char *device,
         return NULL;
     }
     ctx_rtu->data_bit = data_bit;
-    ctx_rtu->stop_bit = stop_bit;
+    if (parity == 'N' )
+	{
+    	ctx_rtu->stop_bit = 2;
+	}else
+	{
+    	ctx_rtu->stop_bit = stop_bit;
+	}
 
     ctx_rtu->confirmation_to_ignore = FALSE;
 
