@@ -1,9 +1,39 @@
-/*
- * ModbusExporttedAPI.h
+ /***************************************************************************************
  *
- *  Created on: 05-Sep-2022
- *      Author: ubuntu
- */
+ *                   Copyright (c) by SoftDEL Systems Ltd.
+ *
+ *   This software is copyrighted by and is the sole property of SoftDEL
+ *   Systems Ltd. All rights, title, ownership, or other interests in the
+ *   software remain the property of  SoftDEL Systems Ltd. This software
+ *   may only be used in accordance with the corresponding license
+ *   agreement. Any unauthorized use, duplication, transmission,
+ *   distribution, or disclosure of this software is expressly forbidden.
+ *
+ *   This Copyright notice may not be removed or modified without prior
+ *   written consent of SoftDEL Systems Ltd.
+ *
+ *   SoftDEL Systems Ltd. reserves the right to modify this software
+ *   without notice.
+ *
+ *   SoftDEL Systems Ltd.						india@softdel.com
+ *   3rd Floor, Pentagon P4,					http://www.softdel.com
+ *	 Magarpatta City, Hadapsar
+ *	 Pune - 411 028
+ *
+ *
+ *   FILE
+ *	 ModbusExporttedAPI.h
+ *
+ *   AUTHORS
+ *
+ *
+ *   DESCRIPTION
+ *
+ *   RELEASE HISTORY
+ *
+ *
+ *************************************************************************************/
+
 #ifndef MODBUS_H
 #define MODBUS_H
 
@@ -63,6 +93,40 @@ MODBUS_BEGIN_DECLS
 #define MODBUS_FC_WRITE_AND_READ_REGISTERS  0x17
 
 #define MODBUS_BROADCAST_ADDRESS    0
+
+#define MAX_LENGTH_PORTNAME 	64
+#define MAX_LENGTH_PARITY 		16
+#define MAX_LENGTH_IP_ADDR		32
+#define MAX_LENGTH_DIR_PIN		3
+
+typedef struct
+{
+	uint16_t strtCoilAddr;
+	uint16_t NoofCoils;
+	uint16_t strtInputstatusAddr;
+	uint16_t NoofInputstatus;
+	uint16_t strtHolRegAddr;
+	uint16_t NoofHolReg;
+	uint16_t strtInputRegAddr;
+	uint16_t NoofInputReg;
+}stModbusRegConfig;
+
+typedef struct
+{
+#ifdef MODBUS_STACK_TCPIP_ENABLED
+	uint8_t szIpAddr[MAX_LENGTH_IP_ADDR];
+	uint16_t nPortNo;
+	uint8_t nSlaveID;
+#else
+	char szPortName[MAX_LENGTH_PORTNAME];
+	char szParity[MAX_LENGTH_PARITY];
+	uint32_t nBaudRate;
+	uint8_t nSlaveID;
+	char DirPin[MAX_LENGTH_DIR_PIN];
+#endif
+	stModbusRegConfig ConfReg;
+}stModbusPhyConfig;
+
 
 /* Modbus_Application_Protocol_V1_1b.pdf (chapter 6 section 1 page 12)
  * Quantity of Coils to read (2 bytes): 1 to 2000 (0x7D0)
@@ -159,6 +223,8 @@ typedef struct _modbus_mapping_t {
     uint16_t *tab_input_registers;
     uint16_t *tab_registers;
 } modbus_mapping_t;
+
+
 
 typedef enum
 {
@@ -282,7 +348,16 @@ MODBUS_STACK_EXPORT void modbus_set_float_dcba(float f, uint16_t *dest);
 MODBUS_STACK_EXPORT void modbus_set_float_badc(float f, uint16_t *dest);
 MODBUS_STACK_EXPORT void modbus_set_float_cdab(float f, uint16_t *dest);
 
-#include "Data_Link_Layer.h"
+MODBUS_STACK_EXPORT int initModbusServerStack(stModbusPhyConfig *phycnfg);
+MODBUS_STACK_EXPORT uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils);
+MODBUS_STACK_EXPORT uint8_t Get_Input_Status(uint16_t StartADD, uint8_t NoOfCoils);
+MODBUS_STACK_EXPORT uint8_t Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils);
+MODBUS_STACK_EXPORT uint8_t Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils);
+MODBUS_STACK_EXPORT uint8_t Set_Coil_Status(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT uint8_t Set_Discrete_input(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT uint8_t Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
+MODBUS_STACK_EXPORT uint8_t Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
+
 
 MODBUS_END_DECLS
 

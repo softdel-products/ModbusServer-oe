@@ -1,9 +1,38 @@
-/*
- * Data_Link_Layer.c
+ /***************************************************************************************
  *
- *  Created on: 05-Sep-2022
- *      Author: ubuntu
- */
+ *                   Copyright (c) by SoftDEL Systems Ltd.
+ *
+ *   This software is copyrighted by and is the sole property of SoftDEL
+ *   Systems Ltd. All rights, title, ownership, or other interests in the
+ *   software remain the property of  SoftDEL Systems Ltd. This software
+ *   may only be used in accordance with the corresponding license
+ *   agreement. Any unauthorized use, duplication, transmission,
+ *   distribution, or disclosure of this software is expressly forbidden.
+ *
+ *   This Copyright notice may not be removed or modified without prior
+ *   written consent of SoftDEL Systems Ltd.
+ *
+ *   SoftDEL Systems Ltd. reserves the right to modify this software
+ *   without notice.
+ *
+ *   SoftDEL Systems Ltd.						india@softdel.com
+ *   3rd Floor, Pentagon P4,					http://www.softdel.com
+ *	 Magarpatta City, Hadapsar
+ *	 Pune - 411 028
+ *
+ *
+ *   FILE
+ *	 Data_Link_Layer.c
+ *
+ *   AUTHORS
+ *
+ *
+ *   DESCRIPTION
+ *
+ *   RELEASE HISTORY
+ *
+ *
+ *************************************************************************************/
 
 #ifdef MODBUS_STACK_TCPIP_ENABLED
 #include <stdio.h>
@@ -39,25 +68,21 @@
 
 #include "Data_Link_Layer.h"
 #include "modbus_def.h"
+#include "gpio_service.h"
 #endif
 
 #ifdef MODBUS_STACK_TCPIP_ENABLED
 static int _modbus_set_slave(modbus_t *ctx, int slave)
 {
     /* Broadcast address is 0 (MODBUS_BROADCAST_ADDRESS) */
-    if (slave >= 0 && slave <= 247) {
+    if (slave >= 0 && slave <= 247)
+    {
         ctx->slave = slave;
-//    } else
-//    	if (slave == MODBUS_TCP_SLAVE) {
-//        /* The special value MODBUS_TCP_SLAVE (0xFF) can be used in TCP mode to
-//         * restore the default value. */
-//        ctx->slave = slave;
     } else
     {
         errno = EINVAL;
         return -1;
     }
-
     return 0;
 }
 
@@ -661,7 +686,17 @@ static int _modbus_rtu_send_msg_pre(uint8_t *req, int req_length)
 
 static ssize_t _modbus_rtu_send(modbus_t *ctx, const uint8_t *req, int req_length)
 {
-     return write(ctx->s, req, req_length);
+	modbus_rtu_t *ctx_rtu = ctx->backend_data;
+	ssize_t size;
+
+	SetValuveDirPin(DirCtrlPin, GPIO_LOW);
+	usleep(100);
+
+	size = write(ctx->s, req, req_length);
+
+	usleep(ctx_rtu->onebyte_time * req_length + 100);
+	SetValuveDirPin(DirCtrlPin, GPIO_HIGH);
+	return size;
 }
 
 static int _modbus_rtu_receive(modbus_t *ctx, uint8_t *req)
@@ -1355,6 +1390,9 @@ modbus_t* initSerialPort(const char *device,
     ctx_rtu->stop_bit = stop_bit;
 
     ctx_rtu->confirmation_to_ignore = FALSE;
+
+    /* Calculate estimated time in micro second to send one byte */
+    ctx_rtu->onebyte_time = 1000000 * (1 + data_bit + (parity == 'N' ? 0 : 1) + stop_bit) / baud;
 
     return ctx;
 }

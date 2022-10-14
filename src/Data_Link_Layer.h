@@ -1,9 +1,38 @@
-/*
- * Data_Link_Layer.h
+ /***************************************************************************************
  *
- *  Created on: 05-Sep-2022
- *      Author: ubuntu
- */
+ *                   Copyright (c) by SoftDEL Systems Ltd.
+ *
+ *   This software is copyrighted by and is the sole property of SoftDEL
+ *   Systems Ltd. All rights, title, ownership, or other interests in the
+ *   software remain the property of  SoftDEL Systems Ltd. This software
+ *   may only be used in accordance with the corresponding license
+ *   agreement. Any unauthorized use, duplication, transmission,
+ *   distribution, or disclosure of this software is expressly forbidden.
+ *
+ *   This Copyright notice may not be removed or modified without prior
+ *   written consent of SoftDEL Systems Ltd.
+ *
+ *   SoftDEL Systems Ltd. reserves the right to modify this software
+ *   without notice.
+ *
+ *   SoftDEL Systems Ltd.						india@softdel.com
+ *   3rd Floor, Pentagon P4,					http://www.softdel.com
+ *	 Magarpatta City, Hadapsar
+ *	 Pune - 411 028
+ *
+ *
+ *   FILE
+ *	 Data_Link_Layer.h
+ *
+ *   AUTHORS
+ *
+ *
+ *   DESCRIPTION
+ *
+ *   RELEASE HISTORY
+ *
+ *
+ *************************************************************************************/
 
 #ifndef DATA_LINK_LAYER_H_
 #define DATA_LINK_LAYER_H_
@@ -36,8 +65,7 @@ MODBUS_BEGIN_DECLS
 MODBUS_STACK_EXPORT modbus_t* initSerialPort(const char *device, int baud, char parity,
                                     int data_bit, int stop_bit);
 
-#define MODBUS_RTU_RS232 0
-#define MODBUS_RTU_RS485 1
+
 
 MODBUS_STACK_EXPORT int modbus_rtu_set_serial_mode(modbus_t *ctx, int mode);
 MODBUS_STACK_EXPORT int modbus_rtu_get_serial_mode(modbus_t *ctx);

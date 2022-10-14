@@ -1,9 +1,39 @@
-/*
- * ModbusExporttedAPI.c
+ /***************************************************************************************
  *
- *  Created on: 05-Sep-2022
- *      Author: ubuntu
- */
+ *                   Copyright (c) by SoftDEL Systems Ltd.
+ *
+ *   This software is copyrighted by and is the sole property of SoftDEL
+ *   Systems Ltd. All rights, title, ownership, or other interests in the
+ *   software remain the property of  SoftDEL Systems Ltd. This software
+ *   may only be used in accordance with the corresponding license
+ *   agreement. Any unauthorized use, duplication, transmission,
+ *   distribution, or disclosure of this software is expressly forbidden.
+ *
+ *   This Copyright notice may not be removed or modified without prior
+ *   written consent of SoftDEL Systems Ltd.
+ *
+ *   SoftDEL Systems Ltd. reserves the right to modify this software
+ *   without notice.
+ *
+ *   SoftDEL Systems Ltd.						india@softdel.com
+ *   3rd Floor, Pentagon P4,					http://www.softdel.com
+ *	 Magarpatta City, Hadapsar
+ *	 Pune - 411 028
+ *
+ *
+ *   FILE
+ *	 ModbusExporttedAPI.c
+ *
+ *   AUTHORS
+ *
+ *
+ *   DESCRIPTION
+ *
+ *   RELEASE HISTORY
+ *
+ *
+ *************************************************************************************/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,8 +49,9 @@
 #include <stdint.h>
 #include "ModbusExporttedAPI.h"
 #include "modbus-private.h"
+#include "Data_Link_Layer.h"
 #include <safe_lib.h>
-
+#include "gpio_service.h"
 
 /* Internal use */
 #define MSG_LENGTH_UNDEFINED -1
@@ -29,6 +60,7 @@
 const unsigned int libmodbus_version_major = LIBMODBUS_VERSION_MAJOR;
 const unsigned int libmodbus_version_minor = LIBMODBUS_VERSION_MINOR;
 const unsigned int libmodbus_version_micro = LIBMODBUS_VERSION_MICRO;
+
 
 /* Max between RTU and TCP max adu length (so TCP) */
 #define MAX_MESSAGE_LENGTH 260
@@ -39,6 +71,10 @@ typedef enum {
     _STEP_META,
     _STEP_DATA
 } _step_t;
+
+modbus_mapping_t *mb_mapping;
+modbus_t *ctx;
+uint8_t *query;
 
 const char *modbus_strerror(int errnum) {
     switch (errnum) {
@@ -76,6 +112,213 @@ const char *modbus_strerror(int errnum) {
         return strerror(errnum);
     }
 }
+
+
+void* Process_Thread_Task(void *arg)
+{
+	int rc;
+
+#ifdef MODBUS_STACK_TCPIP_ENABLED
+	int s = -1;
+
+	s = modbus_tcp_listen(ctx, 1);
+	modbus_tcp_accept(ctx, &s);
+#else
+	rc = modbus_connect(ctx);
+	if (rc == -1)
+	{
+		fprintf(stderr, "Unable to connect %s\n", modbus_strerror(errno));
+		modbus_free(ctx);
+		return (void*)-1;
+	}
+#endif
+
+	for (;;)
+	{
+
+		do {
+			rc = modbus_receive(ctx, query);
+		} while (rc == 0);
+
+		/* The connection is not closed on errors which require on reply such as
+		   bad CRC in RTU. */
+		if (rc == -1 && errno != EMBBADCRC) {
+			/* Quit */
+			break;
+		}
+
+		rc = modbus_reply(ctx, query, rc, mb_mapping);
+		if (rc == -1) {
+			break;
+		}
+	}
+
+	printf("Quit the loop: %s\n", modbus_strerror(errno));
+
+#ifdef MODBUS_STACK_TCPIP_ENABLED
+	if (s != -1)
+	{
+		close(s);
+	}
+#endif
+	modbus_mapping_free(mb_mapping);
+	free(query);
+	/* For RTU */
+	modbus_close(ctx);
+	modbus_free(ctx);
+
+	return 0;
+}
+
+uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils)
+{
+
+	uint8_t *tab_bits = mb_mapping->tab_bits;
+	printf("\nStartADD =%d NoOfCoils= %d",StartADD, NoOfCoils);
+
+	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	{
+		printf("\n%d : <%d>",i,tab_bits[i]);
+	}
+	return 0;
+}
+
+uint8_t Get_Input_Status(uint16_t StartADD, uint8_t NoOfCoils)
+{
+	uint8_t *tab_bits = mb_mapping->tab_input_bits;
+
+	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	{
+		printf("\n%d : <%d>",i,tab_bits[i]);
+	}
+	return 0;
+}
+
+uint8_t Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils)
+{
+	uint16_t *tab_registers =mb_mapping->tab_registers;
+
+	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	{
+		printf("\n%d : <%d>",i,tab_registers[i]);
+	}
+
+	return 0;
+}
+
+uint8_t Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils)
+{
+	uint16_t *tab_registers =mb_mapping->tab_input_registers;
+
+	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	{
+		printf("\n%d : <%d>",i,tab_registers[i]);
+	}
+
+	return 0;
+}
+
+uint8_t Set_Coil_Status(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data)
+{
+	uint8_t *tab_bits = mb_mapping->tab_bits;
+
+	for(uint16_t i=0; i < NoOfCoils; i++)
+	{
+		mb_mapping->tab_bits[Addr] = u8Data[i] ? ON : OFF;
+	    printf("\n%d : <%d>",Addr,tab_bits[Addr]);
+	    Addr++;
+	}
+
+	return 0;
+}
+
+uint8_t Set_Discrete_input(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data)
+{
+	uint8_t *tab_bits = mb_mapping->tab_input_bits;
+
+	for(uint16_t i=0; i < NoOfCoils; i++)
+	{
+		tab_bits[Addr] = u8Data[i] ? ON : OFF;
+		printf("\n%d : <%d>",Addr,tab_bits[Addr]);
+		Addr++;
+	}
+
+	return 0;
+}
+
+uint8_t Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+{
+	uint16_t *tab_registers = mb_mapping->tab_registers;
+
+	for(uint16_t i=0; i < NoOfCoils; i++)
+	{
+		mb_mapping->tab_registers[Addr] = u16Data[i];
+	    printf("\n%d : <%d> ",Addr,tab_registers[Addr]);
+	    Addr++;
+	}
+
+	return 0;
+}
+
+uint8_t Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+{
+	uint16_t *tab_registers = mb_mapping->tab_input_registers;
+
+	for(uint16_t i=0; i < NoOfCoils; i++)
+	{
+		tab_registers[Addr] = u16Data[i];
+		printf("\n%d : <%d>",Addr,tab_registers[Addr]);
+		Addr++;
+	}
+
+	return 0;
+}
+
+int initModbusServerStack(stModbusPhyConfig *phycnfg)
+{
+
+	char parity;
+
+#ifdef MODBUS_STACK_TCPIP_ENABLED
+	int s = -1;
+
+	printf("\nIP_Address =%s \tPortNumber =%d \tSlaveID =%d\n",phycnfg->szIpAddr,phycnfg->nPortNo,phycnfg->nSlaveID);
+	ctx = modbus_new_tcp(phycnfg->szIpAddr, phycnfg->nPortNo);
+	query = malloc(MODBUS_TCP_MAX_ADU_LENGTH);
+#else
+	parity=phycnfg->szParity[0];
+	printf("\nPortName =%s \tParity =%s \tBaudRate =%d \tSlaveID =%d \tDirPin= %s\n",phycnfg->szPortName,phycnfg->szParity,phycnfg->nBaudRate,phycnfg->nSlaveID,phycnfg->DirPin);
+	memset(DirCtrlPin,0x00,sizeof(DirCtrlPin));
+	memcpy_s((void*)DirCtrlPin,(rsize_t) sizeof(DirCtrlPin),(void*)phycnfg->DirPin,(rsize_t) sizeof(phycnfg->DirPin));
+	InitDirPin(DirCtrlPin);
+	SetValuveDirPin(DirCtrlPin, GPIO_HIGH);
+	ctx = initSerialPort(phycnfg->szPortName, phycnfg->nBaudRate, parity, 8, 1);
+	query = malloc(MODBUS_RTU_MAX_ADU_LENGTH);
+#endif
+
+	printf("\n Running Modbus Application");
+	modbus_set_slave(ctx,phycnfg->nSlaveID );
+	modbus_set_debug(ctx, TRUE);
+	mb_mapping = modbus_mapping_new_start_address(
+			phycnfg->ConfReg.strtCoilAddr, phycnfg->ConfReg.NoofCoils,
+			phycnfg->ConfReg.strtInputstatusAddr, phycnfg->ConfReg.NoofInputstatus,
+			phycnfg->ConfReg.strtHolRegAddr, phycnfg->ConfReg.NoofHolReg,
+			phycnfg->ConfReg.strtInputRegAddr, phycnfg->ConfReg.NoofInputReg);
+
+	if (mb_mapping == NULL)
+	{
+		fprintf(stderr, "Failed to allocate the mapping: %s\n",
+				modbus_strerror(errno));
+		modbus_free(ctx);
+		return -1;
+	}
+
+	pthread_t Update_Process_Thread;
+	pthread_create(&Update_Process_Thread, NULL, Process_Thread_Task, NULL);
+
+	return 0;
+}
+
 
 void _error_print(modbus_t *ctx, const char *context)
 {
@@ -165,147 +408,6 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
     msg_length = ctx->backend->send_msg_pre(msg, msg_length);
 
     if (ctx->debug) {
-//    	 for (i = 0; i < msg_length; i++)
-//    	            printf("[%.2X]", msg[i]);
-//    	        printf("\n");
-//    	uint16_t Start_Addr =0, NumberDatapts=0,Force_Data;
-//    	uint8_t Byte_Cout=0;
-//    			bool forceCoil=0;
-//    			if(msg[0]==ctx->slave)
-//    			{
-//    				printf("\nResponse from Server");
-//
-//    				if(msg[1]==1 || msg[1]==2)
-//    				{
-//    					Byte_Cout =msg[2];
-//
-//						uint16_t i=0, j =0, k=0;
-////						Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-////						NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-//
-//						printf("\nByte Count =%d",Byte_Cout);
-//						for (i=0; i < Byte_Cout; i++)
-//						{
-//							if(msg[1]==1)
-//							{
-//								for(j=0;j<8;j++)
-//								{
-//									printf("\nCoil Address= %d :Value= %d",(Start_Addr+k),(msg[3+i] >>j & 0x01));
-//									k++;
-//								}
-//							}if(msg[1]==2)
-//							{
-//								for(j=0;j<8;j++)
-//								{
-//									printf("\nStatus Address= %d :Value= %d",(Start_Addr+k),(msg[3+i] >>j & 0x01));
-//									k++;
-//								}
-//							}else if(msg[1]==3)
-//							{
-//								printf("\n Holding Register Address= %d :Value= %d",(Start_Addr+k),((msg[3+i]<<8) & 0xFF00) | (msg[4+i] &0x00FF));
-//								i++;
-//								k++;
-//							}else
-//							{
-//								printf("\n Input Register Address= %d :Value= %d",(Start_Addr+k),((msg[3+i]<<8) & 0xFF00) | (msg[4+i] &0x00FF));
-//								i++;
-//								k++;
-//							}
-//						}
-//
-//    				}
-//  ///  				printf("\nSlave ID =%d ",msg[0]);
-////    				switch(msg[1])
-////    				{
-////    					case 1:printf("\nFunction code = Read Coil Status(%d)",msg[1]);				break;
-////    					case 2:printf("\nFunction code = Read Input Status(%d)",msg[1]);			break;
-////    					case 3:printf("\nFunction code = Read Holding Registers(%d)",msg[1]);		break;
-////    					case 4:printf("\nFunction code = Read Input Registers(%d)",msg[1]);			break;
-////    					case 5:printf("\nFunction code = Force Single Coil(%d)",msg[1]);			break;
-////    					case 6:printf("\nFunction code = Preset Single Register(%d)",msg[1]);		break;
-////    					case 15:printf("\nFunction code = Force Multiple Coils(%d)",msg[1]);		break;
-////    					case 16:printf("\nFunction code = Preset Multiple Regs(%d)",msg[1]);		break;
-////    					default:printf("\nFunction code = (%d)",msg[1]);							break;
-////    				}
-//
-////    				if(msg[1]==1 || msg[1]==2 || msg[1]==3 || msg[1]==4 ||msg[1]==15 || msg[1]==16)
-////    				{
-////    					Byte_Cout =msg[2];
-////
-//////    					if(msg[1]==15 || msg[1]==16)
-////						{
-////							uint16_t  tempcount=0;
-////							uint16_t i=0, j =0, k=0;
-////							Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-////							NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-////							tempcount =msg[6];
-////							printf("\nByte Count =%d",tempcount);
-////							for (i=0; i < tempcount; i++)
-////							{
-////								if(msg[1]==15)
-////								{
-////									for(j=0;j<8;j++)
-////									{
-////										printf("\n Address= %d :Value= %d",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-////										k++;
-////									}
-////								}else
-////								{
-////									printf("\n Address= %d :Value= %d",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-////									i++;
-////									k++;
-////								}
-////							}
-////						}
-////
-////    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-////    					NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-////    					switch(msg[1])
-////    					{
-////    						case 1:printf("\nAddress =%d \nNumber of Coils  =%d",Start_Addr,forceCoil); 			break;
-////    						case 2:printf("\nAddress =%d \nNumber of Status  =%d",Start_Addr,forceCoil); 			break;
-////    						case 3:printf("\nAddress =%d \nNumber of Holding Register  =%d",Start_Addr,forceCoil); 	break;
-////    						case 4:printf("\nAddress =%d \nNumber ofInput Register  =%d",Start_Addr,forceCoil); 	break;
-////    	//					case 15:printf("\nAddress =%d : Number of  =%d",Start_Addr,forceCoil); 	break;
-////    	//					case 16:printf("\nAddress =%d : Number Coils  =%d",Start_Addr,forceCoil); 	break;
-////    						default: 	break;
-////    					}
-////    				}
-//
-//    				if(msg[1]==5 || msg[1]==6)
-//    				{
-//    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//    					forceCoil =msg[4]<<8 | msg[5];
-//    					printf("\nAddress =%d : Force Data  =%d",Start_Addr,forceCoil);
-//    				}
-//
-//    				if(msg[1]==15 || msg[1]==16)
-//    				{
-//    					uint16_t  tempcount=0;
-//    					uint16_t i=0, j =0, k=0;
-//    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//    					NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-//    					tempcount =msg[6];
-//    					printf("\nByte Count =%d",tempcount);
-//    					for (i=0; i < tempcount; i++)
-//    					{
-//    						if(msg[1]==15)
-//    						{
-//    							for(j=0;j<8;j++)
-//    							{
-//    								printf("\n Address= %d :Value= %d",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-//    								k++;
-//    							}
-//    						}else
-//    						{
-//    							printf("\n Address= %d :Value= %d",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-//    							i++;
-//    							k++;
-//    						}
-//    					}
-//    				}
-//
-//    			}
 //        for (i = 0; i < msg_length; i++)
 //            printf("[%.2X]", msg[i]);
 //        printf("\n");
@@ -372,7 +474,6 @@ int modbus_send_raw_request(modbus_t *ctx, const uint8_t *raw_req, int raw_req_l
     if (raw_req_length > 2) {
         /* Copy data after function code */
     	memcpy_s((void*)(req + req_length),(rsize_t) (raw_req_length - 2),(void*)(raw_req + 2),(rsize_t) (raw_req_length - 2));
-//        memcpy(req + req_length, raw_req + 2, raw_req_length - 2);
         req_length += raw_req_length - 2;
     }
 
@@ -482,15 +583,6 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     int length_to_read;
     int msg_length = 0;
     _step_t step;
-    uint8_t u8data[250]={0};
-
-      if (ctx->debug) {
-//        if (msg_type == MSG_INDICATION) {
-//            printf("Waiting for an indication...\n");
-//        } else {
-//            printf("Waiting for a confirmation...\n");
-//        }
-    }
 
     if (ctx->s < 0) {
         if (ctx->debug) {
@@ -569,13 +661,6 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
             return -1;
         }
 
-        /* Display the hex code of each character received */
-//        if (ctx->debug) {
-//            int i;
-//            for (i=0; i < rc; i++)
-//                printf("<%.2X>", msg[msg_length + i]);
-//        }
-//        printf("\n");
         /* Sums bytes received */
         msg_length += rc;
         /* Computes remaining bytes */
@@ -619,122 +704,6 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
         /* else timeout isn't set again, the full response must be read before
            expiration of response timeout (for CONFIRMATION only) */
     }
-
-//    if (ctx->debug)
-//    {
-//		uint16_t Start_Addr =0, NumberDatapts=0,Force_Data;
-//		bool forceCoil=0;
-//
-//
-//		if(msg[0]==ctx->slave)
-//		{
-//			if(msg[1]==MODBUS_FC_WRITE_SINGLE_COIL || msg[1]==MODBUS_FC_WRITE_SINGLE_REGISTER)
-//			{
-//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//				forceCoil =msg[4]<<8 | msg[5];
-////				memset(u8data,0x00,sizeof(u8data));
-////				memcpy_s((void*)(req + req_length),(rsize_t) (raw_req_length - 2),(void*)(raw_req + 2),(rsize_t) (raw_req_length - 2));
-////				memcpy(u8data,&forceCoil,sizeof(forceCoil));
-//				CallBackModbusWrite(msg[1], Start_Addr,1, &forceCoil);
-//				printf("\n Write Single Coils Addr =%d :Value =%d",Start_Addr,forceCoil);
-//			}
-//
-//			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
-//			{
-//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-//				memset(u8data,0x00,sizeof(u8data));
-//				memcpy(u8data,&forceCoil,sizeof(forceCoil));
-//				CallBackModbusWrite(msg[1], Start_Addr,1, &u8data);
-//				printf("\n Write Multiple Holding Regsister =%d: Value =%d",Start_Addr,forceCoil);
-//			}
-//
-//			if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS || msg[1]==MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
-//			{
-//				uint16_t  tempcount=0;
-//				uint16_t i=0, j =0, k=0;
-//				Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//				NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-//				tempcount =msg[6];
-//
-//
-//				if(msg[1]==MODBUS_FC_WRITE_MULTIPLE_COILS)
-//				{
-//					printf("\n Write Multiple Coils Addr =%d Number of Coils =%d",Start_Addr,NumberDatapts);
-//					memset(u8data,0x00,sizeof(u8data));
-//					memcpy(u8data,&msg[7],tempcount);
-//					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
-//				}else
-//				{
-//					printf("\n Write Multiple Coils Holding Addr =%d: Number of Register =%d",Start_Addr,NumberDatapts);
-//					memset(u8data,0x00,sizeof(u8data));
-//					memcpy(u8data,&msg[7],tempcount);
-//					CallBackModbusWrite(msg[1], Start_Addr,NumberDatapts, &u8data);
-//				}
-//
-//				for (i=0; i < tempcount; i++)
-//				{
-//					if(msg[1]==15)
-//					{
-//						for(j=0;j<8;j++)
-//						{
-//							printf("\n%d :<%d>",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-//							k++;
-//						}
-//					}else
-//					{
-//						printf("\n%d :<%d>",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-//						i++;
-//						k++;
-//					}
-//				}
-//			}
-//
-//			switch (msg[1])
-//				 {
-//				    case MODBUS_FC_WRITE_SINGLE_COIL:
-//				    	 printf("\n Write Single Coils Addr =%d :Value =%d",Start_Addr,forceCoil);
-//
-//
-//				    	break;
-//
-//				    case MODBUS_FC_WRITE_SINGLE_REGISTER:
-//						 printf("\n Write Single Coils Holding Regsister =%d: Value =%d",Start_Addr,forceCoil);
-//
-//
-//						break;
-//
-//				    	if(msg[1]==15 || msg[1]==16)
-//				    				{
-//				    					uint16_t  tempcount=0;
-//				    					uint16_t i=0, j =0, k=0;
-//				    					Start_Addr =((msg[2]<<8) & 0xFF00) | (msg[3] &0x00FF);
-//				    					NumberDatapts =((msg[4]<<8) & 0xFF00) | (msg[5] &0x00FF);
-//				    					tempcount =msg[6];
-//				    					printf("\nByte Count =%d",tempcount);
-//				    					for (i=0; i < tempcount; i++)
-//				    					{
-//				    						if(msg[1]==15)
-//				    						{
-//				    							for(j=0;j<8;j++)
-//				    							{
-//				    								printf("\n Address= %d :Value= %d",(Start_Addr+k),(msg[7+i] >>j & 0x01));
-//				    								k++;
-//				    							}
-//				    						}else
-//				    						{
-//				    							printf("\n Address= %d :Value= %d",(Start_Addr+k),((msg[7+i]<<8) & 0xFF00) | (msg[8+i] &0x00FF));
-//				    							i++;
-//				    							k++;
-//				    						}
-//				    					}
-//				    				}
-//				    break;
-//
-//
-//				 }
-//		}
-//    }
 
     return ctx->backend->check_integrity(ctx, msg, msg_length);
 }
@@ -1117,7 +1086,6 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
 
             if (data == 0xFF00 || data == 0x0) {
                 mb_mapping->tab_bits[mapping_address] = data ? ON : OFF;
-//               memcpy(rsp, req, req_length);
                 memcpy_s((void*)rsp,(rsize_t) sizeof(rsp),(void*)req,(rsize_t) req_length);
                 rsp_length = req_length;
                 CallBackFunctionForModbus(function, mapping_address, 0, tab_bits);
@@ -1147,7 +1115,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
             int data = (req[offset + 3] << 8) + req[offset + 4];
 
             mb_mapping->tab_registers[mapping_address] = data;
-            memcpy(rsp, req, req_length);
+            memcpy_s((void*)rsp,(rsize_t) req_length,(void*)req,(rsize_t) req_length);
             rsp_length = req_length;
             CallBackFunctionForModbus(function, mapping_address, 0, tab_registers);
         }
@@ -1182,7 +1150,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
             CallBackFunctionForModbus(function, mapping_address, nb, tab_bits);
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             /* 4 to copy the bit address (2) and the quantity of bits */
-            memcpy(rsp + rsp_length, req + rsp_length, 4);
+            memcpy_s((void*)rsp + rsp_length,(rsize_t) 4,(void*)req + rsp_length,(rsize_t) 4);
             rsp_length += 4;
         }
     }
@@ -1214,7 +1182,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
             CallBackFunctionForModbus(function, mapping_address, nb, tab_registers);
             rsp_length = ctx->backend->build_response_basis(&sft, rsp);
             /* 4 to copy the address (2) and the no. of registers */
-            memcpy(rsp + rsp_length, req + rsp_length, 4);
+            memcpy_s((void*)rsp + rsp_length,(rsize_t) 4,(void*)req + rsp_length,(rsize_t) 4);
             rsp_length += 4;
         }
     }
@@ -1231,7 +1199,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
         rsp[rsp_length++] = 0xFF;
         /* LMB + length of LIBMODBUS_VERSION_STRING */
         str_len = 3 + strlen(LIBMODBUS_VERSION_STRING);
-        memcpy(rsp + rsp_length, "LMB" LIBMODBUS_VERSION_STRING, str_len);
+        memcpy_s((void*)rsp + rsp_length,(rsize_t) str_len,(void*)"LMB" LIBMODBUS_VERSION_STRING,(rsize_t) str_len);
         rsp_length += str_len;
         rsp[byte_count_pos] = rsp_length - byte_count_pos - 1;
     }
@@ -1258,7 +1226,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req,
 
             data = (data & and) | (or & (~and));
             mb_mapping->tab_registers[mapping_address] = data;
-            memcpy(rsp, req, req_length);
+            memcpy_s((void*)rsp,(rsize_t) sizeof(rsp),(void*)req,(rsize_t) req_length);
             rsp_length = req_length;
         }
     }

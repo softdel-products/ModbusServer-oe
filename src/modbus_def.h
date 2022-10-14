@@ -1,9 +1,39 @@
-/*
- * modbus-tcp-private.h
+ /***************************************************************************************
  *
- *  Created on: 05-Sep-2022
- *      Author: ubuntu
- */
+ *                   Copyright (c) by SoftDEL Systems Ltd.
+ *
+ *   This software is copyrighted by and is the sole property of SoftDEL
+ *   Systems Ltd. All rights, title, ownership, or other interests in the
+ *   software remain the property of  SoftDEL Systems Ltd. This software
+ *   may only be used in accordance with the corresponding license
+ *   agreement. Any unauthorized use, duplication, transmission,
+ *   distribution, or disclosure of this software is expressly forbidden.
+ *
+ *   This Copyright notice may not be removed or modified without prior
+ *   written consent of SoftDEL Systems Ltd.
+ *
+ *   SoftDEL Systems Ltd. reserves the right to modify this software
+ *   without notice.
+ *
+ *   SoftDEL Systems Ltd.						india@softdel.com
+ *   3rd Floor, Pentagon P4,					http://www.softdel.com
+ *	 Magarpatta City, Hadapsar
+ *	 Pune - 411 028
+ *
+ *
+ *   FILE
+ *	 modbus_def.h
+ *
+ *   AUTHORS
+ *
+ *
+ *   DESCRIPTION
+ *
+ *   RELEASE HISTORY
+ *
+ *
+ *************************************************************************************/
+
 #ifndef MODBUS_DEF_H
 #define MODBUS_DEF_H
 #include <stdint.h>
@@ -56,6 +86,8 @@ typedef struct _modbus_rtu {
 
     /* To handle many slaves on the same link */
     int confirmation_to_ignore;
+
+    int onebyte_time;
 } modbus_rtu_t;
 
 #endif
