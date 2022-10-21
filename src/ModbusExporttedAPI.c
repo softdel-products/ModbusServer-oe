@@ -171,7 +171,8 @@ void* Process_Thread_Task(void *arg)
 	return 0;
 }
 
-uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils)
+
+MODBUS_STACK_EXPORT modbus_error Get_Coil_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data)
 {
 
 	modbus_error RetVal= MODBUS_SUCCESS;
@@ -192,7 +193,7 @@ uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils)
 	return RetVal;
 }
 
-modbus_error Get_Input_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data)
+MODBUS_STACK_EXPORT modbus_error Get_Input_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 	uint8_t *tab_bits = mb_mapping->tab_input_bits;
@@ -212,7 +213,7 @@ modbus_error Get_Input_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8
 	return RetVal;
 }
 
-modbus_error Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
+MODBUS_STACK_EXPORT modbus_error Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 	uint16_t *tab_registers =mb_mapping->tab_registers;
@@ -232,7 +233,8 @@ modbus_error Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t
 	return RetVal;
 }
 
-modbus_error Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
+
+MODBUS_STACK_EXPORT modbus_error Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 	uint16_t *tab_registers =mb_mapping->tab_input_registers;
@@ -251,8 +253,7 @@ modbus_error Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *
 
 	return RetVal;
 }
-
-modbus_error Set_Coil_Status(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
+MODBUS_STACK_EXPORT modbus_error Set_Coil_Status(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 
@@ -271,7 +272,7 @@ modbus_error Set_Coil_Status(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data
 	return RetVal;
 }
 
-modbus_error Set_Discrete_input(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
+MODBUS_STACK_EXPORT modbus_error Set_Discrete_input(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 
@@ -290,7 +291,8 @@ modbus_error Set_Discrete_input(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8D
 	return RetVal;
 }
 
-modbus_error Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+
+MODBUS_STACK_EXPORT modbus_error Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 
@@ -309,7 +311,7 @@ modbus_error Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u
 	return RetVal;
 }
 
-modbus_error Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+MODBUS_STACK_EXPORT modbus_error Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
 {
 	modbus_error RetVal= MODBUS_SUCCESS;
 
