@@ -53,6 +53,7 @@
 #include <safe_lib.h>
 #include "gpio_service.h"
 
+const uint8_t UT_INPUT_BITS_TAB[] = { 0xAC, 0xDB, 0x35 };
 /* Internal use */
 #define MSG_LENGTH_UNDEFINED -1
 
@@ -173,105 +174,158 @@ void* Process_Thread_Task(void *arg)
 uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils)
 {
 
+	modbus_error RetVal= MODBUS_SUCCESS;
 	uint8_t *tab_bits = mb_mapping->tab_bits;
-	printf("\nStartADD =%d NoOfCoils= %d",StartADD, NoOfCoils);
 
-	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	if((StartADD >= mb_mapping->start_bits) && ((StartADD+NoOfCoils) <= mb_mapping->nb_bits))
 	{
-		printf("\n%d : <%d>",i,tab_bits[i]);
+	    for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			u8Data[i]=tab_bits[StartADD];
+			StartADD++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
-	return 0;
+
+	return RetVal;
 }
 
-uint8_t Get_Input_Status(uint16_t StartADD, uint8_t NoOfCoils)
+modbus_error Get_Input_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data)
 {
+	modbus_error RetVal= MODBUS_SUCCESS;
 	uint8_t *tab_bits = mb_mapping->tab_input_bits;
 
-	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	if((StartADD >= mb_mapping->start_input_bits) && ((StartADD+NoOfCoils) <= mb_mapping->nb_input_bits))
 	{
-		printf("\n%d : <%d>",i,tab_bits[i]);
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			u8Data[i]=tab_bits[StartADD];
+			StartADD++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
-	return 0;
+
+	return RetVal;
 }
 
-uint8_t Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils)
+modbus_error Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
 {
+	modbus_error RetVal= MODBUS_SUCCESS;
 	uint16_t *tab_registers =mb_mapping->tab_registers;
 
-	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	if((StartADD >= mb_mapping->start_registers) && ((StartADD+NoOfCoils) <= mb_mapping->nb_registers))
 	{
-		printf("\n%d : <%d>",i,tab_registers[i]);
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			u16Data[i]=tab_registers[StartADD];
+			StartADD++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
-uint8_t Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils)
+modbus_error Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data)
 {
+	modbus_error RetVal= MODBUS_SUCCESS;
 	uint16_t *tab_registers =mb_mapping->tab_input_registers;
 
-	for(uint16_t i =StartADD; i < (StartADD+NoOfCoils); i++)
+	if((StartADD >= mb_mapping->start_input_registers) && ((StartADD+NoOfCoils) <= mb_mapping->nb_input_registers))
 	{
-		printf("\n%d : <%d>",i,tab_registers[i]);
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			u16Data[i]=tab_registers[StartADD];
+			StartADD++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
-uint8_t Set_Coil_Status(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data)
+modbus_error Set_Coil_Status(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
 {
-	uint8_t *tab_bits = mb_mapping->tab_bits;
+	modbus_error RetVal= MODBUS_SUCCESS;
 
-	for(uint16_t i=0; i < NoOfCoils; i++)
+	if((Addr >= mb_mapping->start_bits) && ((Addr+NoOfCoils) <= mb_mapping->nb_bits))
 	{
-		mb_mapping->tab_bits[Addr] = u8Data[i] ? ON : OFF;
-	    printf("\n%d : <%d>",Addr,tab_bits[Addr]);
-	    Addr++;
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			mb_mapping->tab_bits[Addr] = u8Data[i] ? ON : OFF;
+			Addr++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
-uint8_t Set_Discrete_input(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data)
+modbus_error Set_Discrete_input(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data)
 {
-	uint8_t *tab_bits = mb_mapping->tab_input_bits;
+	modbus_error RetVal= MODBUS_SUCCESS;
 
-	for(uint16_t i=0; i < NoOfCoils; i++)
+	if((Addr >= mb_mapping->start_input_bits) && ((Addr+NoOfCoils) <= mb_mapping->nb_input_bits))
 	{
-		tab_bits[Addr] = u8Data[i] ? ON : OFF;
-		printf("\n%d : <%d>",Addr,tab_bits[Addr]);
-		Addr++;
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			mb_mapping->tab_input_bits[Addr] = u8Data[i] ? ON : OFF;
+			Addr++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
-uint8_t Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+modbus_error Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
 {
-	uint16_t *tab_registers = mb_mapping->tab_registers;
+	modbus_error RetVal= MODBUS_SUCCESS;
 
-	for(uint16_t i=0; i < NoOfCoils; i++)
+	if((Addr >= mb_mapping->start_registers) && ((Addr+NoOfCoils) <= mb_mapping->nb_registers))
 	{
-		mb_mapping->tab_registers[Addr] = u16Data[i];
-	    printf("\n%d : <%d> ",Addr,tab_registers[Addr]);
-	    Addr++;
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			mb_mapping->tab_registers[Addr] = u16Data[i];
+			Addr++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
-uint8_t Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
+modbus_error Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data)
 {
-	uint16_t *tab_registers = mb_mapping->tab_input_registers;
+	modbus_error RetVal= MODBUS_SUCCESS;
 
-	for(uint16_t i=0; i < NoOfCoils; i++)
+	if((Addr >= mb_mapping->start_input_registers) && ((Addr+NoOfCoils) <= mb_mapping->nb_input_registers))
 	{
-		tab_registers[Addr] = u16Data[i];
-		printf("\n%d : <%d>",Addr,tab_registers[Addr]);
-		Addr++;
+		for(uint16_t i=0; i < NoOfCoils; i++)
+		{
+			mb_mapping->tab_input_registers[Addr] = u16Data[i];
+			Addr++;
+		}
+	}else
+	{
+		return MODBUS_INVALID_ADDRESS_ERROR;
 	}
 
-	return 0;
+	return RetVal;
 }
 
 int initModbusServerStack(stModbusPhyConfig *phycnfg)

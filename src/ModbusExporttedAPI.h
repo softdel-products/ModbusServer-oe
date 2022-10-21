@@ -233,6 +233,12 @@ typedef enum
     MODBUS_ERROR_RECOVERY_PROTOCOL      = (1<<2)
 } modbus_error_recovery_mode;
 
+typedef enum
+{
+    MODBUS_SUCCESS          		= 0,
+    MODBUS_INVALID_ADDRESS_ERROR    = 1
+} modbus_error;
+
 MODBUS_STACK_EXPORT void CallBackFunctionForModbus(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values);
 //MODBUS_STACK_EXPORT void CallBackModbusWrite(uint8_t u8FunCode, uint16_t pStartAddr, uint16_t u16NumOfReg, void *values);
 MODBUS_STACK_EXPORT int modbus_set_slave(modbus_t* ctx, int slave);
@@ -349,14 +355,15 @@ MODBUS_STACK_EXPORT void modbus_set_float_badc(float f, uint16_t *dest);
 MODBUS_STACK_EXPORT void modbus_set_float_cdab(float f, uint16_t *dest);
 
 MODBUS_STACK_EXPORT int initModbusServerStack(stModbusPhyConfig *phycnfg);
-MODBUS_STACK_EXPORT uint8_t Get_Coil_Status(uint16_t StartADD, uint8_t NoOfCoils);
-MODBUS_STACK_EXPORT uint8_t Get_Input_Status(uint16_t StartADD, uint8_t NoOfCoils);
-MODBUS_STACK_EXPORT uint8_t Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils);
-MODBUS_STACK_EXPORT uint8_t Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils);
-MODBUS_STACK_EXPORT uint8_t Set_Coil_Status(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data);
-MODBUS_STACK_EXPORT uint8_t Set_Discrete_input(uint16_t Addr,  uint8_t NoOfCoils, uint8_t *u8Data);
-MODBUS_STACK_EXPORT uint8_t Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
-MODBUS_STACK_EXPORT uint8_t Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
+MODBUS_STACK_EXPORT modbus_error Get_Coil_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT modbus_error Get_Input_Status(uint16_t StartADD, uint16_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT modbus_error Get_Holding_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data);
+MODBUS_STACK_EXPORT modbus_error Get_Input_Register(uint16_t StartADD, uint8_t NoOfCoils, uint16_t *u16Data);
+
+MODBUS_STACK_EXPORT modbus_error Set_Coil_Status(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT modbus_error Set_Discrete_input(uint16_t Addr,  uint16_t NoOfCoils, uint8_t *u8Data);
+MODBUS_STACK_EXPORT modbus_error Set_Holding_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
+MODBUS_STACK_EXPORT modbus_error Set_Input_Register(uint16_t Addr,  uint8_t NoOfCoils, uint16_t *u16Data);
 
 
 MODBUS_END_DECLS
